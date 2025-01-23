@@ -1,0 +1,43 @@
+.flex {
+    display: flex;
+}
+/*flex default direction*/
+.flex-col {
+    flex-direction: column;
+}
+/* Horizontal alignments*/
+.justify-center {
+    justify-content: center;
+}
+.justify-between {
+    justify-content: space-between;
+}
+.justify-end {
+    justify-content: flex-end;
+}
+/* Vertical alignments*/
+.items-center {
+    align-items: center;
+}
+.items-end {
+    align-items: flex-end;
+}
+.items-between {
+    align-items: space-between;
+}
+/*space between flex elements*/
+.gap-1 {
+    gap: 10px;
+}
+.gap-2 {
+    gap: 10px;
+}
+.gap-3 {
+    gap: 10px;
+}
+.gap-4 {
+    gap: 10px;
+}
+.gap-5 {
+    gap: 10px;
+}
