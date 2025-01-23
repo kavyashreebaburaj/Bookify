@@ -1,10 +1,23 @@
 import React from 'react'
-import { Form } from 'antd';
+import { Form, message } from 'antd';
 import Button from '../../components/Button';
+import { RegisterUser } from '../../apicalls/users';
 
 function Register() {
-  const onFinish = (values) => {
-    console.log("Success", values);
+  const onFinish = async (values) => {
+    try {
+      const response = await RegisterUser(values);
+      if(response.success){
+        message.success(response.message);
+        alert(`Success: ${response.message}`);
+      }else{
+        message.error(response.message);
+        alert(`Error: ${response.message || "Something went wrong"}`);
+      }
+    } catch (error) {
+       message.error(error.message);
+       alert(`Error: ${error.message || "Something went wrong"}`);
+    }
   };
 
   return (
@@ -20,6 +33,9 @@ function Register() {
           </Form.Item>
           <Form.Item label="Email" name="email">
             <input type="email" placeholder="Email" />
+          </Form.Item>
+          <Form.Item label="Phone Number" name="phone">
+            <input type="number" placeholder="Phone Number" />
           </Form.Item>
           <Form.Item label="Password" name="password">
             <input type="password" placeholder="Password" />
