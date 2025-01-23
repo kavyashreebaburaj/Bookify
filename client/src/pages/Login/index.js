@@ -1,10 +1,25 @@
 import React from 'react'
-import { Form } from 'antd';
+import { Form, message } from 'antd';
 import Button from '../../components/Button';
+import { LoginUser } from '../../apicalls/users';
 
 function Login() {
-  const onFinish = (values) => {
-    console.log("Success", values);
+  const onFinish = async(values) => {
+    try {
+      const response = await LoginUser(values);
+      if(response.success){
+        message.success(response.message);
+        alert(`Success: ${response.message}`);
+        localStorage.setItem("token",response.data);
+        window.location.href="/";
+      }else{
+        message.error(response.message);
+        alert(`Error: ${response.message}`);
+      }
+    } catch (error) {
+      message.error(error.message);
+      alert(`Error: ${error.message}`);
+    }
   };
 
   return (
