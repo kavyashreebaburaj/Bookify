@@ -4,7 +4,11 @@ import { axiosInstance } from "./axiosInstance";
 export const IssueBook = async (payload) => {
     try {
       const response = await axiosInstance.post("/api/issues/issue-new-book", payload);
+      if(response.data.success) {
       return response.data;
+      }else{
+        throw new Error(response.data.message);
+      }
     } catch (error) {
       throw error;
     }
