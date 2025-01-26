@@ -24,12 +24,12 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       required: true,
-      default: "patron", //admin,patron,librarian
+      default: "admin", // patron, admin, librarian
     },
     status: {
       type: String,
       required: true,
-      default: "pending", //active,inactive,pending
+      default: "active", // active, inactive or pending
     },
   },
   { timestamps: true }

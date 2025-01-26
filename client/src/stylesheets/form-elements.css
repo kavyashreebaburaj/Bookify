@@ -1,11 +1,17 @@
-input{
+input,
+textarea,
+select {
     height: 40px;
     width :100%;
     border:gray 1px solid;
     padding-left: 10px;
     font-size: 14px;
 }
-input:focus{
+textarea{
+    padding-top: 15px;
+    min-height: 60px;
+}
+input:focus, textarea:focus , select:focus {
     outline:none;
     border:#800000 solid 1.5px;
 }
