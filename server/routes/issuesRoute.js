@@ -6,15 +6,35 @@ const authMiddleware = require("../middlewares/authMiddleware");
 // issue a book to patron
 router.post("/issue-new-book", authMiddleware, async (req, res) => {
   try {
+    const { book, user } = req.body;
+
+    // Step 1: Check if the book has available stock
+    const bookDetails = await Book.findById(book);
+    if (bookDetails.availableCopies <= 0) {
+      return res.send({
+        success: false,
+        message: "Book is not available for borrowing.",
+      });
+    }
+    // Step 2: Check if the user has already borrowed two books
+    const userIssues = await Issue.find({ user: user, status: "issued" });
+    if (userIssues.length >= 2) {
+      return res.send({
+        success: false,
+        message: "You can borrow a maximum of two books at a time.",
+      });
+    }
+    
+    
+
+    // issue book to patron (create new issue record)
+    const newIssue = new Issue(req.body);
+    await newIssue.save();
     // inventory adjustment (available copies must be decremented by 1)
     await Book.findOneAndUpdate(
       { _id: req.body.book },
       { $inc: { availableCopies: -1 } }
     );
-
-    // issue book to patron (create new issue record)
-    const newIssue = new Issue(req.body);
-    await newIssue.save();
     return res.send({
       success: true,
       message: "Book issued successfully",
