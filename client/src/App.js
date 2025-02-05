@@ -13,13 +13,16 @@ import Loader from "./components/Loader";
 import { useSelector } from "react-redux";
 import Profile from "./pages/Profile";
 import BookDescription from "./pages/BookDescription";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 function App() {
   const { loading } = useSelector((state) => state.loaders);
   return (
     <div>
+      
       {loading && <Loader />}
-
+      <ToastContainer position="top-right" autoClose={3000} />
       <BrowserRouter>
         <Routes>
           <Route

@@ -18,6 +18,9 @@ function IssuedBooks({ showIssuedBooks, setShowIssuedBooks, selectedUser }) {
       dispatch(HideLoading());
       if (response.success) {
         setIssuedBooks(response.data);
+      }else{
+        dispatch(HideLoading());
+        message.error(response.message);
       }
     } catch (error) {
       dispatch(HideLoading());

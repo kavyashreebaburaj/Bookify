@@ -4,44 +4,72 @@ const Book = require("../models/booksModel");
 const authMiddleware = require("../middlewares/authMiddleware");
 
 // issue a book to patron
+// Issue a book to a patron
 router.post("/issue-new-book", authMiddleware, async (req, res) => {
   try {
     const { book, user } = req.body;
 
-    // Step 1: Check if the book has available stock
+    // Step 1: Fetch book details and validate existence
     const bookDetails = await Book.findById(book);
+    if (!bookDetails) {
+      return res.status(400).send({
+        success: false,
+        message: "Book not found.",
+      });
+    }
+
+    // Step 2: Check if the book is available
     if (bookDetails.availableCopies <= 0) {
-      return res.send({
+      return res.status(400).send({
         success: false,
         message: "Book is not available for borrowing.",
       });
     }
-    // Step 2: Check if the user has already borrowed two books
-    const userIssues = await Issue.find({ user: user, status: "issued" });
-    if (userIssues.length >= 2) {
-      return res.send({
+
+    // Step 3: Check if the user has already borrowed this book
+    const existingIssue = await Issue.findOne({ user, book, status: "issued" });
+    if (existingIssue) {
+      return res.status(400).send({
         success: false,
-        message: "You can borrow a maximum of two books at a time.",
+        message: "This Book is already issued.",
+        //"You have already borrowed this book."
       });
     }
-    
-    
 
-    // issue book to patron (create new issue record)
-    const newIssue = new Issue(req.body);
-    await newIssue.save();
-    // inventory adjustment (available copies must be decremented by 1)
-    await Book.findOneAndUpdate(
-      { _id: req.body.book },
-      { $inc: { availableCopies: -1 } }
-    );
-    return res.send({
-      success: true,
-      message: "Book issued successfully",
-      data: newIssue,
-    });
+    // Step 4: Check if the user has exceeded the borrow limit
+    const userIssues = await Issue.find({ user, status: "issued" });
+    if (userIssues.length >= 2) {
+      return res.status(400).send({
+        success: false,
+        message: "Maximum of two books can be issued for an user",
+      });
+    }
+
+    // Step 5: Issue the book and update inventory atomically
+    const session = await Issue.startSession();
+    session.startTransaction();
+
+    try {
+      const newIssue = new Issue({ book, user, status: "issued", issueDate: new Date() });
+      await newIssue.save({ session });
+
+      await Book.findByIdAndUpdate(book, { $inc: { availableCopies: -1 } }, { session });
+
+      await session.commitTransaction();
+      session.endSession();
+
+      return res.status(200).send({
+        success: true,
+        message: "Book issued successfully.",
+        data: newIssue,
+      });
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
+    }
   } catch (error) {
-    return res.send({
+    return res.status(500).send({
       success: false,
       message: error.message,
     });

@@ -6,7 +6,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { GetUserById } from "../../../apicalls/users";
 import { HideLoading, ShowLoading } from "../../../redux/loadersSlice";
 import { EditIssue, IssueBook } from "../../../apicalls/issues";
-
+import { toast } from "react-toastify";
 function IssueForm({
   open = false,
   setOpen,
@@ -97,10 +97,12 @@ function IssueForm({
         setOpen(false);
       } else {
         message.error(response.message);
+        toast.error(response.message);
       }
     } catch (error) {
       dispatch(HideLoading());
       message.error(error.message);
+      toast.error(error.message);
     }
   };
 

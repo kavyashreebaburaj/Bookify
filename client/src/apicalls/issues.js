@@ -10,7 +10,10 @@ export const IssueBook = async (payload) => {
         throw new Error(response.data.message);
       }
     } catch (error) {
-      throw error;
+      return {
+        success: false,
+        message: error.response?.data?.message || "Something went wrong.",
+      };
     }
   }
 
