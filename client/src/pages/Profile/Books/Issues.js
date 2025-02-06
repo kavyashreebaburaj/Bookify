@@ -89,7 +89,8 @@ function Issues({ open = false, setOpen, selectedBook, reloadBooks }) {
       render: (_id, record) => (
         <div className="flex flex-col">
           <span>{_id}</span>
-          <span className="text-xs text-gray-500">{record.user.name}</span>
+          <span className="text-xs text-gray-500"> {record.user ? record.user.name : "Unknown User"}
+          </span>
         </div>
       ),
     },
