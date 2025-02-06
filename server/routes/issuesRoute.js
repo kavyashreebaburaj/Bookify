@@ -4,70 +4,82 @@ const Book = require("../models/booksModel");
 const authMiddleware = require("../middlewares/authMiddleware");
 
 // issue a book to patron
-// Issue a book to a patron
 router.post("/issue-new-book", authMiddleware, async (req, res) => {
   try {
-    const { book, user } = req.body;
+    const { user, book, returnDate } = req.body; // Ensure returnDate is received from frontend
 
-    // Step 1: Fetch book details and validate existence
+    // 1. Check if the same book is already issued to the same user
+    const existingIssue = await Issue.findOne({ user: user, book: book, status: "issued" });
+    if (existingIssue) {
+      return res.status(400).send({
+        success: false,
+        message: "This book has already been issued to this user.",
+      });
+    }
+
+    // 2. Limit the number of books per user to 2 (only count books with status "issued")
+    const issuedBooksCount = await Issue.countDocuments({ user: user, status: "issued" });
+    if (issuedBooksCount >= 2) {
+      return res.status(400).send({
+        success: false,
+        message: "A user can only issue up to 2 books.",
+      });
+    }
+
+    // 3. Check if there are available copies to issue
     const bookDetails = await Book.findById(book);
     if (!bookDetails) {
-      return res.status(400).send({
+      return res.status(404).send({
         success: false,
         message: "Book not found.",
       });
     }
-
-    // Step 2: Check if the book is available
+    
     if (bookDetails.availableCopies <= 0) {
       return res.status(400).send({
         success: false,
-        message: "Book is not available for borrowing.",
+        message: "No copies available to issue.",
       });
     }
 
-    // Step 3: Check if the user has already borrowed this book
-    const existingIssue = await Issue.findOne({ user, book, status: "issued" });
-    if (existingIssue) {
+    // 4. Validate that returnDate is provided
+    if (!returnDate) {
       return res.status(400).send({
         success: false,
-        message: "This Book is already issued.",
-        //"You have already borrowed this book."
+        message: "Return date is required.",
       });
     }
 
-    // Step 4: Check if the user has exceeded the borrow limit
-    const userIssues = await Issue.find({ user, status: "issued" });
-    if (userIssues.length >= 2) {
+    // 5. Update available copies **before** creating an issue record
+    const updatedBook = await Book.findOneAndUpdate(
+      { _id: book, availableCopies: { $gt: 0 } }, // Ensure copies > 0 before decrementing
+      { $inc: { availableCopies: -1 } },
+      { new: true }
+    );
+
+    if (!updatedBook) {
       return res.status(400).send({
         success: false,
-        message: "Maximum of two books can be issued for an user",
+        message: "Failed to issue book due to availability.",
       });
     }
 
-    // Step 5: Issue the book and update inventory atomically
-    const session = await Issue.startSession();
-    session.startTransaction();
+    // 6. Issue the book (create a new issue record with returnDate)
+    const newIssue = new Issue({
+      user,
+      book,
+      issueDate: new Date(),
+      returnDate: new Date(returnDate), // Store returnDate properly
+      status: "issued",
+    });
 
-    try {
-      const newIssue = new Issue({ book, user, status: "issued", issueDate: new Date() });
-      await newIssue.save({ session });
+    await newIssue.save();
 
-      await Book.findByIdAndUpdate(book, { $inc: { availableCopies: -1 } }, { session });
-
-      await session.commitTransaction();
-      session.endSession();
-
-      return res.status(200).send({
-        success: true,
-        message: "Book issued successfully.",
-        data: newIssue,
-      });
-    } catch (error) {
-      await session.abortTransaction();
-      session.endSession();
-      throw error;
-    }
+    return res.send({
+      success: true,
+      message: "Book issued successfully",
+      data: newIssue,
+    });
   } catch (error) {
     return res.status(500).send({
       success: false,
@@ -75,7 +87,6 @@ router.post("/issue-new-book", authMiddleware, async (req, res) => {
     });
   }
 });
-
 // get issues
 router.post("/get-issues", authMiddleware, async (req, res) => {
   try {
@@ -97,30 +108,49 @@ router.post("/get-issues", authMiddleware, async (req, res) => {
 // return a book
 router.post("/return-book", authMiddleware, async (req, res) => {
   try {
-    // inventory adjustment (available copies must be incremented by 1)
-    await Book.findOneAndUpdate(
-      {
-        _id: req.body.book,
-      },
-      {
-        $inc: { availableCopies: 1 },
-      }
+    const { book, _id, user } = req.body;
+
+    // Ensure we're using only the user ID if the user object is passed
+    const userId = typeof user === "object" ? user._id : user;
+
+    // 1. Increase available copies in the Book collection
+    const bookUpdate = await Book.findOneAndUpdate(
+      { _id: book },
+      { $inc: { availableCopies: 1 } },
+      { new: true }
     );
 
-    // return book (update issue record)
-    await Issue.findOneAndUpdate(
-      {
-        _id: req.body._id,
-      },
-      req.body
-    );
+    if (!bookUpdate) {
+      return res.status(404).send({
+        success: false,
+        message: "Book not found.",
+      });
+    }
+
+    // 2. Mark the issue as returned
+    const issueUpdate = await Issue.findOneAndUpdate(
+      { _id: _id, user: userId },
+      { status: "returned", returnedDate: new Date() },
+      { new: true }
+    ).lean(); // Use .lean() to get a plain JavaScript object
+
+    if (!issueUpdate) {
+      return res.status(404).send({
+        success: false,
+        message: "Issue record not found.",
+      });
+    }
+
+    // 3. Modify the user field to only contain the user ID (not the full object)
+    issueUpdate.user = issueUpdate.user._id;
 
     return res.send({
       success: true,
       message: "Book returned successfully",
+      data: issueUpdate,
     });
   } catch (error) {
-    return res.send({
+    return res.status(500).send({
       success: false,
       message: error.message,
     });

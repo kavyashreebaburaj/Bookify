@@ -50,7 +50,13 @@ function IssuedBooks({ showIssuedBooks, setShowIssuedBooks, selectedUser }) {
     {
       title: "Return Date (Due Date)",
       dataIndex: "returnDate",
-      render: (dueDate) => moment(dueDate).format("DD-MM-YYYY hh:mm A"),
+      render: (dueDate) => {
+        if (dueDate && moment(dueDate).isValid()) {
+          return moment(dueDate).format("DD-MM-YYYY hh:mm A");
+        } else {
+          return "Not Set";
+        }
+      },
     },
     {
       title: "Rent",
